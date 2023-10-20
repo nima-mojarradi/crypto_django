@@ -3,7 +3,8 @@ import requests
 import redis
 import asyncio
 import json
-
+from django.core.cache import cache
+import aiohttp
 
 
 def replace_btc_with_usdt():
@@ -17,10 +18,33 @@ async def get_data():
         data2 = f"https://api.kucoin.com/api/v1/market/candles?type=1min&symbol={units}&startAt=1566703297&endAt=1566789757"
         informations1 = requests.get(data2)
         dictionary = json.loads(informations1.text)
+        cache.set(dictionary)
         if dictionary["code"] == "200000":
             if dictionary["data"]:
                 print(units,'\n', '*'*100)
                 print(informations1.text)
-        
-        
 asyncio.run(get_data())
+
+
+
+
+async def fetch(session, url):
+    async with session.get(url) as response:
+        return await response.text()
+
+
+async def main():
+    all_units = replace_btc_with_usdt()
+    async with aiohttp.ClientSession() as session:
+        for units in all_units:
+            data2 = f"https://api.kucoin.com/api/v1/market/candles?type=1min&symbol={units}&startAt=1566703297&endAt=1566789757"
+            text = await fetch(session, data2)
+            dictionary = json.loads(text)
+            if dictionary["code"] == "200000":
+                if dictionary["data"]:
+                    print(units,'\n', '*'*100)
+                    print(text)
+
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
